@@ -1,6 +1,9 @@
-# EO-Notebooks
+[<img src="https://raw.githubusercontent.com/mbakker7/exploratory_computing_with_python/master/tudelft_logo.png" width="200" align='right'>](https://www.tudelft.nl/citg/over-faculteit/afdelingen/geoscience-remote-sensing/staff/scientific-staff/dr-stef-lhermitte)
 
-This repository provides an overview of example notebooks used by [@steflhermitte](https://twitter.com/StefLhermitte) for teaching different courses
+# EO-Notebooks
+*Created by Stef Lhermitte (s.lhermitte at tudelft.nl |  [@steflhermitte](https://twitter.com/StefLhermitte) | [www.earthmapps.io](http://www.earthmapps.io))*
+
+This repository provides an overview of example notebooks for teaching different courses.
 
 * TUDelft BSc of [Civil Engineering](https://www.tudelft.nl/en/education/programmes/bachelors/ct/bachelor-of-civil-engineering)
   * Python programming in Bouwplaats (CTB2000-20-D4a)
@@ -11,3 +14,4 @@ This repository provides an overview of example notebooks used by [@steflhermitt
   * Climate Impacts and Engineering (CTB3311)
     * [CMIP data processing in the cloud using python & Google Colab](ClimateImpactsAndEngineering/CTB3311_CMIPinPython.ipynb)
 
+[![Twitter](https://img.shields.io/twitter/url/https/twitter.com/cloudposse.svg?style=social&label=%20%40steflhermitte)](https://twitter.com/steflhermitte)
