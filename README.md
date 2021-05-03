@@ -9,5 +9,5 @@ This repository provides an overview of example notebooks used by [@steflhermitt
     * Basic remote sensing classification using sklearn (coming soon)
 
   * Climate Impacts and Engineering (CTB3311)
-    * [CMIP processing in python](ClimateImpactsAndEngineering/CTB3311_CMIPinPython.ipynb)
+    * [CMIP data processing in the cloud using python & Google Colab](ClimateImpactsAndEngineering/CTB3311_CMIPinPython.ipynb)
 
