@@ -6,3 +6,7 @@ This repository provides an overview of example notebooks used by [@steflhermitt
     * [Mapping in python using cartopy, geopandas and openstreetmap](PythonProgramming/RS_Notebook1_Mapping_in_python_2021.ipynb)
     * Adding remote sensing data in python using geemap and rasterio (coming soon)
     * Basic remote sensing classification using sklearn (coming soon)
+
+ * Climate Impacts and Engineering (CTB3311) for TUDelft BSc students of [Civil Engineering](https://www.tudelft.nl/en/education/programmes/bachelors/ct/bachelor-of-civil-engineering)
+    * [CMIP processing in python]()
+
