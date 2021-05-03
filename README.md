@@ -8,5 +8,5 @@ This repository provides an overview of example notebooks used by [@steflhermitt
     * Basic remote sensing classification using sklearn (coming soon)
 
  * Climate Impacts and Engineering (CTB3311) for TUDelft BSc students of [Civil Engineering](https://www.tudelft.nl/en/education/programmes/bachelors/ct/bachelor-of-civil-engineering)
-    * [CMIP processing in python]()
+    * [CMIP processing in python](ClimateImpactsAndEngineering/CTB3311_CMIPinPython.ipynb)
 
