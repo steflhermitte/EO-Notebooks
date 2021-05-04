@@ -15,7 +15,7 @@ This repository provides an overview of example notebooks for teaching different
     * [CMIP data processing in the cloud using python & Google Colab](ClimateImpactsAndEngineering/CTB3311_CMIPinPython.ipynb)
 
 * TUDelft MSc of [Geoscience & Remote Sensing](https://www.tudelft.nl/citg/over-de-faculteit/afdelingen/geoscience-remote-sensing/education/msc-track-geoscience-and-remote-sensing)
-  * Cryosphere: Remote Sensing and Modelling [CIE4602](https://studiegids.tudelft.nl/a101_displayCourse.do?course_id=52720)
-    * [Remote sensing of snow/ice properties from multi-source remote sensing data](Cryosphere/CIE4602_RSAssignment_2020-21_Q3.ipynb) 
+  * Cryosphere: Remote Sensing and Modelling [[CIE4602]](https://studiegids.tudelft.nl/a101_displayCourse.do?course_id=52720)
+    * [Remote sensing of snow/ice properties from multi-source remote sensing data](Cryosphere/CIE4602_RSAssignment_2020_21_Q3.ipynb)
 
 [![Twitter](https://img.shields.io/twitter/url/https/twitter.com/cloudposse.svg?style=social&label=%20%40steflhermitte)](https://twitter.com/steflhermitte)
