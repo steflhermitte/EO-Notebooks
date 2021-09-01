@@ -17,5 +17,7 @@ This repository provides an overview of example notebooks for teaching different
 * TUDelft MSc of [Geoscience & Remote Sensing](https://www.tudelft.nl/citg/over-de-faculteit/afdelingen/geoscience-remote-sensing/education/msc-track-geoscience-and-remote-sensing)
   * Cryosphere: Remote Sensing and Modelling [[CIE4602]](https://studiegids.tudelft.nl/a101_displayCourse.do?course_id=52720)
     * [Remote sensing of snow/ice properties from multi-source remote sensing data](Cryosphere/CIE4602_RSAssignment_2020_21_Q3.ipynb)
+  * Remote Sensing and Big Data [4616]
+    * [Mapping in python](RemoteSensing%2BBigData/RSBD_Notebook1_Mapping_in_python_2021.ipynb) 
 
 [![Twitter](https://img.shields.io/twitter/url/https/twitter.com/cloudposse.svg?style=social&label=%20%40steflhermitte)](https://twitter.com/steflhermitte)
