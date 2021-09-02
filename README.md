@@ -19,5 +19,6 @@ This repository provides an overview of example notebooks for teaching different
     * [Remote sensing of snow/ice properties from multi-source remote sensing data](Cryosphere/CIE4602_RSAssignment_2020_21_Q3.ipynb)
   * Remote Sensing and Big Data [4616]
     * [Mapping in python](RemoteSensing%2BBigData/RSBD_Notebook1_Mapping_in_python_2021.ipynb) 
+    * [Mapping in geemap](RemoteSensing%2BBigData/RSBD_Notebook2_PythonMappinginGEE.ipynb)
 
 [![Twitter](https://img.shields.io/twitter/url/https/twitter.com/cloudposse.svg?style=social&label=%20%40steflhermitte)](https://twitter.com/steflhermitte)
