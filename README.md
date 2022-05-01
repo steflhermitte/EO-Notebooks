@@ -7,9 +7,9 @@ This repository provides an overview of example notebooks for teaching different
 
 * TUDelft BSc of [Civil Engineering](https://www.tudelft.nl/en/education/programmes/bachelors/ct/bachelor-of-civil-engineering)
   * Python programming in Bouwplaats (CTB2000-20-D4a)
-    * [Mapping in python using cartopy, geopandas and openstreetmap](PythonProgramming/RS_Notebook1_Mapping_in_python_2021.ipynb)
-    * [Plotting remote sensing data in python using geemap and rasterio](PythonProgramming/RS_Notebook2_Loading_RS_data_in_python_2021.ipynb)
-    * [Basic remote sensing classification using sklearn](PythonProgramming/RS_Notebook3_classification_2021.ipynb)
+    * [Mapping in python using cartopy, geopandas and openstreetmap](PythonProgramming/RS_Notebook1_Mapping_in_python.ipynb)
+    * [Plotting remote sensing data in python using geemap and rasterio](PythonProgramming/RS_Notebook2_Loading_RS_data_in_python.ipynb)
+    * [Basic remote sensing classification using sklearn](PythonProgramming/RS_Notebook3_classification.ipynb)
 
   * Climate Impacts and Engineering (CTB3311)
     * [CMIP data processing in the cloud using python & Google Colab](ClimateImpactsAndEngineering/CTB3311_CMIPinPython.ipynb)
