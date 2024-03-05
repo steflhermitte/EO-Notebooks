@@ -17,293 +17,82 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Introduction
 
-In this R notebook we will learn how to:
+In this practical session we will learn how to:
 
--   download (remote sensing) data from Google Earth engine
+-   download (remote sensing) data from Google Earth Engine
 
 -   visualize and preliminary analyse the data
 
 -   apply different machine learning techniques
 
-In order to use run this notebook you will need a Google Earth Engine account. If you do not have one yet, create one at [GEE webpage](https://signup.earthengine.google.com/). Google Earth Engine combines a multi-petabyte catalog of satellite imagery and geospatial data sets with planetary-scale analysis capabilities and makes it available for scientists, researchers, and developers to detect changes, map trends, and quantify differences on the Earth's surface. The [public data archive](https://developers.google.com/earth-engine/datasets) includes more than thirty years of historical imagery and scientific data sets, updated and expanded daily. It contains over twenty petabytes of geospatial data instantly available for analysis and if you look for a specific data set I recommend to check the [data catalog](https://developers.google.com/earth-engine/datasets).
+In order to use run this notebook you will need a Google Earth Engine (GEE) account. If you do not have one yet, create one at [GEE webpage](https://signup.earthengine.google.com/). GEE combines a multi-petabyte catalog of satellite imagery and geospatial data sets with planetary-scale analysis capabilities and makes it available for scientists, researchers, and developers to detect changes, map trends, and quantify differences on the Earth's surface. The [public data archive](https://developers.google.com/earth-engine/datasets) includes more than thirty years of historical imagery and scientific data sets, updated and expanded daily. It contains over twenty petabytes of geospatial data instantly available for analysis and if you look for a specific data set I recommend to check the [data catalog](https://developers.google.com/earth-engine/datasets).
 
-In this notebook, we will limit the use of GEE to downloading different data sources and subsequently work with the data on your local computer. GEE offers a multitude of more opportunities and functions to process, analyze and visualize the data in the cloud, but covering these is beyond the scope of this notebook
+In this notebook, we will limit the use of GEE to downloading different data sources and subsequently work with the data on your local computer. GEE offers a multitude of more opportunities and functions to process, analyze and visualize the data in the cloud, but covering these is beyond the scope of this session.
 
 Once the data are downloaded, we will perform different types of classifiers/regressions on the data in order to let you understand the different concept of classification based on machine learning techniques in practice.
 
 ## Before you start
 
-Before starting this notebook make sure that you installed the necessary packages. In the next cell, we load the necessary packages. If you encounter an error message when running the `library()` function in R, it may be because the required package is not installed on your computer. In order to install the package, you can use the `install.packages()` function. For example, if you receive an error when running `library(raster)`, you can install the package by typing `install.packages("raster")` in the console. After installation, you can load the package by running `library(raster)` again. It is important to ensure that all necessary packages are installed before running your R code to avoid errors and ensure that your code runs smoothly.
+Before starting this notebook make sure that you install the necessary packages. In the next cell, we load the necessary packages. If you encounter an error message when running the `library()` function in R, it may be because the required package is not installed on your computer. In order to install the package, you can use the `install.packages()` function. For example, if you receive an error when running `library(raster)`, you can install the package by typing `install.packages("raster")` in the console. After installation, you can load the package by running `library(raster)` again. It is important to ensure that all necessary packages are installed before running your R code to avoid errors and ensure that your code runs smoothly.
 
-Additionally, you can also install packages using the R GUI by selecting the `Packages` menu and clicking on `Install packages`. From there, you can search for and install the desired package.
+Additionally, you can also install packages using the R GUI by selecting the `Packages` menu and clicking on `Install`. From there, you can search for and install the desired package.
 
 ```{r load-packages, message=FALSE, warning=FALSE}
-# Packages for spatial data processing & visualization
-library(rgdal)
+# Packages for spatial data processing
 library(raster)
-library(sf)
-library(sp)
-library(rasterVis)
-library(mapview)
-library(leaflet)
-library(plainview)
-library(leafsync)
-library(rgee)
-library(tmap)
-library(geojsonio)
-library(googledrive)
-library(forcats)
+library(terra)
 library(dplyr)
-library(hrbrthemes)
+library(reshape2)
+library(data.table)
+library(leafsync)
 library(glcm)
+library(RStoolbox)
 
 # Packages for visualization
-library(RColorBrewer)
+library(mapview)
+library(tmap)
+library(ggplot2)
+library(ggridges)
 library(plotly)
-library(grDevices)
 
 # Machine learning packages
 library(caret)
-library(randomForest)
-library(ranger)
-library(MLmetrics)
-library(nnet)
-library(NeuralNetTools)
-library(LiblineaR)
 
-# Packages for general data processing and parallel computation
+# Packages for general data processing
 library(data.table)
 library(dplyr)
-library(stringr)
-library(doParallel)
-library(snow)
-library(parallel)
-library(remotes)
 
 # set the temporary folder for raster package operations
 rasterOptions(tmpdir = "./cache/temp")
 ```
 
-Moreover, in order to download the images, you need to install the `rgee` package. For the complete `rgee` installation instruction, I refer to the dedicated [installation instruction](https://r-spatial.github.io/rgee/#installation), but below you find a short version:
-
-```{=plain}
-install.packages("rgee")
-# Additionally, rgee depends on the Python packages: numpy and ee. To install them, users can follow any of these two methods:
-
-# Method 1: Use ee_install (Highly recommended for users with no experience with Python environments) 
-
-rgee::ee_install() # If you don't have a python version with ee yet
-
-# Method 2: Use ee_install_set_pyenv (Recommended for users with experience with Python environments)
-
-#rgee::ee_install_set_pyenv(
-#  py_path = "/home/csaybar/.virtualenvs/rgee/bin/python", # Change it for your own Python PATH
-#  py_env = "rgee" # Change it for your own Python ENV
-# )
-# or for Mac users:
-#rgee::ee_install_set_pyenv(
-#  py_path = "/Users/u0036095/mambaforge/envs/gee/bin/python",
-#  py_env = NULL
-#)
-```
-Subsequently we can load `rgee:`
-
-```{r install_rgee}
-library(rgee)
-ee_check() # to check if it is properly installed
-ee_Initialize()
-```
-
-Once `rgee` is successfully installed, we still need to install 2 additional packages directly from the corresponding github pages using the `remotes` package that has the option to directly a package from a github page with the `install_github` function:
-
-```{r}
-# Install package to visualize histograms as ridge lines
-remotes::install_github("R-CoderDotCom/ridgeline@main")
-library(ridgeline)
-```
-
 Finally, before starting our notebook we want to run it in the correct location on our computer by changing the working directory with \`setwd\`. The notebook will work optimally if you install it in the location of the unzipped zip file of this practical session
 
 ```{r}
-# Change working directory with setwd
+# Change the working directory with setwd
 # setwd(location/of/your/unzipped/labZipfile/)
-setwd('/Users/slhermitte/Library/CloudStorage/OneDrive-KULeuven/teaching/2022-23_S2_I0D73a_RSVS/Classification/Lab')
+setwd('C:/Users/u0132684/Documents/Lab/Lab')
 
-# Control the working directory by printing it
+# Check the working directory by printing it
 getwd()
 ```
 
 ## Step 1: Pre-process remote sensing data on GEE
 
-During the past few years, GEE has become very popular in the geospatial community and it has empowered numerous environmental applications at local, regional, and global scales. GEE provides both JavaScript and Python APIs for making computational requests to the Earth Engine servers.
+We will do Step 1 and Step 2 in the Google Earth Engine (GEE) code editor (<https://code.earthengine.google.com/>). First, we explore GEE and then export an image to your Google Drive. We can then download the image and import it into R to use it from Step 3 onwards in this notebook.
 
-Within GEE, data range from images/image collections to geometries/features/feature collections. When processing data it is important to understand the difference between images and image collections.
-
-![](Rimages/GEE_imageVsCollection.png)
-
-### Images in GEE
-
-Images are individual rasters composed of one or more bands and each band has its own name, data type, scale, mask and projection. Each image has metadata stored as a set of properties. Images can be loaded by pasting an Earth Engine asset ID into the ee.Image() constructor. You can find image IDs in the data catalog. For example, to load the USGS SRTM terrain model within GEE we can:
-
-```{r load-image}
-# Define Earth Engine data set
-image = ee$Image('USGS/SRTMGL1_003')
-ee_print(image)
-```
-
-Subsequently, we can visualize the data within GEE:
-
-```{r vis-image}
-# Make a visualization setting with min, max and palette values
-colorizedVis <- list(
-  min=0.0,
-  max=3000.0,
-  palette=c('blue','green','brown','red'
-  )
-)
-# visualize in GEE
-Map$addLayer(image,colorizedVis,'SRTM')
-```
-
-```{r}
-dataset = ee$ImageCollection('ESA/WorldCover/v200')$first()
-
-visualization = list(bands=c('Map'))
-
-Map$centerObject(dataset)
-
-Map$addLayer(dataset, visualization, "Landcover")
-```
-
-### ImageCollections in GEE
-
-An ImageCollection is a stack or sequence of images. For example, it can be the entire [Sentinel-2 surface reflection collection](https://notebooks.githubusercontent.com/view/%27https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_SR%27) which contains all Sentinel-2 surface reflectance images over the Earth.
-
-An ImageCollection can be loaded by pasting an Earth Engine asset ID into the `ee.ImageCollection` constructor. You can find ImageCollection IDs in the [data catalog](https://developers.google.com/earth-engine/datasets).
-
-```{r load-collection}
-sentinelCollection = ee$ImageCollection('COPERNICUS/S2_SR')
-```
-
-This collection contains every Sentinel-2 image in the public catalog. There are a lot. Usually you want to filter the collection before. Filtering can occur based on:
-
--   region of interest / bounds: to only get images that contain a certain area. Later we will see how to define such an area
-
--   date: to only get images from a certain date range
-
--   metadata: to only get images that fulfill a certain metadata requirement (e.g. only images with less than x% cloud cover). To get an idea of the potential metadata, I recommend to have a look at the data catalog -\> `Image Properties` for each collection (e.g. for S2: <https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_SR>)
-
-```{r filter-collection}
-S2 = ee$ImageCollection('COPERNICUS/S2_SR')$
-        filterBounds(ee$Geometry$Point(4.75, 50.75))$
-        filterDate('2019-01-01', '2019-12-31')$
-        filterMetadata('CLOUDY_PIXEL_PERCENTAGE','less_than',20)
-ee_print(S2)
-```
-
-The standard way to get an image out of a collection is to reduce the collection. For example, we can sort based on a metadata field and subsequently get the first image. Notice in the following example that the image appears very dark as the min/max values are 0/10000 (corresponding to reflectance values of 0/1; see scale parameter in [data catalog](https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_SR#bands)), but changing the max-value to a lower value will make it clearer.
-
-```{r vis-collection-first}
-# Sort and get first image
-S2_im = S2$sort('CLOUDY_PIXEL_PERCENTAGE')$first()
-# Define visualization parameters
-S2_vis = list(
-  min=0.0,
-  max=10000.0,
-  bands=c('B4','B3','B2')
-)
-Map$addLayer(S2_im,S2_vis,'S2 first image')
-# Zoom map on image on scale level 10
-Map$centerObject(S2_im,zoom=10)
-```
-
-Or apply some basic reducers to get the mean, median etc.
-
-```{r vis-collection-median}
-# Get the Mean image of the collection
-S2_im = S2$mean()
-# Get the Median image of the collection
-S2_im2 = S2$median()
-
-# Define visualization parameters
-S2_vis = list(
-  min=0.0,
-  max=4000.0,
-  bands=c('B4','B3','B2')
-)
-
-# Add image
-Map$addLayer(S2_im,S2_vis,'S2 mean') + Map$addLayer(S2_im2,S2_vis,'S2 median')
-```
-
-If you toggle the layers by clicking ![](Rimages/GEE_layerButton.png) , you will notice how the reducers have an effect on the end result. For example, it is clear that the mean reducer is still heavily impacted by the clouds that bias the pixel values high.
-
-### Geometries in GEE
-
-We can also define geometries in GEE as Earth Engine handles vector data with the Geometry type. GEE support points and polygons but in this example notebook we are going to limit ourselves to points and rectangles. By default these are defined in `EPSG:4326` so lat/lon coordinates. Subsequently we can use these geometries to filter our data or define an output geometry when exporting:
-
-```{r define-geometry}
-# Point based on lon/lat which is default
-point = ee$Geometry$Point(coords=c(1.5, 1.5))
-# Region based on rectangle in lat/lon projections (i.e., EPSG:4326)
-region.leuven <- ee$Geometry$Rectangle(
-  coords = c(4.7, 50.7, 4.8, 50.8),
-  proj = "EPSG:4326",
-  geodesic = FALSE
-)
-ee_print(region.leuven)
-```
-
-These geometries can subsequently be re-projected to for example Lambert 72 projection which corresponds to [EPSG:31370](https://epsg.io/31370)
-
-```{r transform-geometry}
-region.leuven.bd72 = region.leuven$transform(ee$Projection('EPSG:31370'),0.01)
-ee_print(region.leuven.bd72)
-```
+Link to GEE script: <https://code.earthengine.google.com/2b95fd1bcbe1fe53b0844661c7921bc3>
 
 ## Step 2: Download data from GEE
 
-Everything we have done and visualized up to now completely happened in GEE: i.e. we did the processing (e.g., filtering, reducing) on GEE and just visualized the output with R.
-
-However, in some situations it might also be handy to export data from GEE to your local computer by using the `ee_as_raster` function. To export, we always need to define:
-
--   `image`: ee\$Image to be converted into a raster object. This image also defines the coordinate reference system (`crs`) of the output
-
--   `region`: a region of interest (bounding box). CRS needs to be the same that the argument image. Otherwise, it will be forced. If not specified, image bounds are taken.
-
--   `via`: to indicate that the data are exported through Google drive. This means you need to connect your Google drive to GEE.
-
--   `scale`: the scale (in m) in which the data are exported
-
-```{r im2raster}
-# first only select the bands that start with a 'B' to remove the quality bands
-S2_exp = S2_im2$select('B.*') 
-# export as raster
-s2_r <- ee_as_raster(S2_exp, 
-                      region=region.leuven,
-                      via = "drive",
-                      scale = 10)
-```
-
-So if you want to export the data in a different projection system, you first need to re-project it:
-
-```{r reproject_image}
-S2_im2_rep = S2_im2$reproject(crs='EPSG:31370')
-ee_print(S2_im2_rep)
-```
+--\> GEE code editor
 
 ## Step 3: Read in downloaded data
 
-When running `ee_as_raster`, the data are piped through your Google drive directly in a raster stack object in memory. Afterwards, it is always good practice to save your data set to your disk in order to load it faster in later stages.
-
-```{r write-raster}
-writeRaster(s2_r,'RData/s2_r.tif',options=c('TFW=YES'))
-```
-
-This data set can subsequently be reloaded into memory
+Now we can import the .tif file.
 
 ```{r load-raster}
-s2_rl = brick('RData/s2_r.tif')
+s2_rl = raster::brick('s2_r.tif')
 s2_rl
 ```
 
@@ -315,11 +104,12 @@ Subsequently, you can visualize the data on an interactive map using the [mapvie
 
 ```{r plot-interactive}
 # use viewRGB to view RGB images interactively
-viewRGB(s2_rl,b=2,g=3,r=4)
+mapview::viewRGB(s2_rl, b=2, g=3, r=4, maxpixels=1242110)
 # use viewRGB to view one band images interactively
-mapview(s2_rl[[1]])
+mapview::mapview(s2_rl[[1]])
 # Combine maps by using the + symbol
-viewRGB(s2_rl,b=2,g=3,r=4)+mapview(s2_rl[[8]])
+mapview::viewRGB(s2_rl, b=2, g=3, r=4, maxpixels=1242110) + 
+  mapview(s2_rl[[8]], maxpixels=1242110)
 ```
 
 #### Static visualization
@@ -328,32 +118,35 @@ Or a static map using the `tmap` [package](https://r.geocompx.org/adv-map.html#s
 
 ```{r plot-static-tm}
 # Create a tmap object (map_1) with a raster layer (s2_rl) colored using a custom RGB color scheme based on the layer's  values
-map_1 = tm_shape((s2_rl/5500*255)) +        # Set the raster layer as the main layer and scale its colors according to the values in the layer divided by 5500 and multiplied by 255
-         tm_rgb(r = 4, g = 3, b = 2) +      # Use a custom RGB color scheme with red = 4, green = 3, and blue = 2
-         tm_scale_bar(position = c("left", "bottom"))  # Add a scale bar to the map in the bottom-left corner
+map_1 = tmap::tm_shape((s2_rl/5500*255)) + 
+  # Set the raster layer as the main layer and scale its colors according to the values in   the layer divided by 5500 and multiplied by 255
+  tmap::tm_rgb(r = 4, g = 3, b = 2) +      
+  # Use a custom RGB color scheme with red = 4, green = 3, and blue = 2
+  tmap::tm_scale_bar(position = c("left", "bottom"))  
+  # Add a scale bar to the map in the bottom-left corner
 
 # Create another tmap object (map_2) with a raster layer (s2_rl[[4]]) overlaid 
-map_2 = tm_shape(s2_rl[[4]]) +              # Set the raster layer as the main layer
-        tm_raster(alpha = 0.7,              # Set the opacity of the raster layer to 0.7
-                   palette = "YlGn",         # Use a color palette called "YlGn"
-                   legend.show = TRUE)       # Display a legend for the raster layer
+map_2 = tmap::tm_shape(s2_rl[[4]]) + 
+  # Set the raster layer as the main layer
+  tmap::tm_raster(alpha = 0.7,        # Set the opacity of the raster layer to 0.7
+                  palette = "YlGn",   # Use a color palette called "YlGn"
+                  legend.show = TRUE) # Display a legend for the raster layer
 
 # Combine the two tmap objects (map_1 and map_2) into a single layout
 tmap_arrange(map_1, map_2)
-
 ```
 
 Or alternatively use the functions of the raster package such as [`plotRGB`](https://www.rdocumentation.org/packages/raster/versions/3.6-14/topics/plotRGB)
 
 ```{r plot-static-raster}
-plotRGB(s2_rl,2,3,4,stretch="lin",scale=5000)
+raster::plotRGB(s2_rl,2 , 3, 4, stretch="lin", scale=5000)
 ```
 
-OK, now you know how to download, read in and visualize data. In the next notebook, we will see how to further explore this data and finally classify this data into information
+Now you know how to download, read in and visualize data. In the next part of the notebook, we will see how to further explore this data and finally classify this data into information.
 
 ## Step 5: Explore the data
 
-When using the raster::click function we can explore some of the pixel values. Therefore, however, you have to make sure the markdown is plotted in the console and not inline in the notebook. This implies clicking on the preferences wheel above and setting the Chunk Output in console:
+When using the raster::click function we can explore some of the pixel values. However, you have to make sure the markdown is plotted in the console and not inline in the notebook. This implies clicking on the preferences wheel above and setting the Chunk Output in console:
 
 ![](Rimages/RChunk2.png){width="237"}
 
@@ -361,15 +154,15 @@ Once this is done you can visualize the image and use an interactive clicking fu
 
 ```{r}
 # Plot the data
-plotRGB(s2_rl,2,3,4,stretch="lin",scale=5000)
-# change plotting parameters to better see the points and numbers generated from clicking
+raster::plotRGB(s2_rl, 2, 3, 4, stretch="lin", scale=5000)
+# Change plotting parameters to better see the points and numbers generated from clicking
 par(col="red", cex=3)
 
-# use the 'click' function
-ct = click(s2_rl, id=T, xy=T, cell=T, type="p", pch=16, col="magenta", col.lab="red")
+# Use the 'click' function
+ct = raster::click(s2_rl, id=T, xy=T, cell=T, type="p", pch=16, col="magenta", col.lab="red")
 ```
 
-Once you have clicked your five points, press the `ESC` key to save your clicked points and close the function before moving on to the next step. If you make a mistake in the step, run the `chunck`again to start over.
+Once you have clicked your five points, press the `ESC` key to save your clicked points and close the function before moving on to the next step. If you make a mistake in the step, run the `chunck` again to start over.
 
 Here we see the output of our clicking:
 
@@ -406,15 +199,20 @@ Pixel.melt$idf <- as.factor(Pixel.melt$id)
 str(Pixel.melt)
 
 # Create a ggplot object with no data or mappings specified
-ggplot()+
+ggplot() +
 
      # Add a line layer using the data from Pixel.melt, mapping wl to x, Reflectance to y, and idf to color
      # Set the line width to 1
-     geom_line(data = Pixel.melt, mapping = aes(x=wl, y=Reflectance, color=idf), lwd=1)+
+     geom_line(data = Pixel.melt, 
+               mapping = aes(x=wl, y=Reflectance, color=idf), 
+               lwd=1)+
 
      # Add a point layer using the data from Pixel.melt, mapping wl to x, Reflectance to y, and idf to color
      # Set the point shape to a filled circle (pch=20) and the size to 5
-     geom_point(data = Pixel.melt, mapping = aes(x=wl, y=Reflectance, color=idf), pch=20,size=5)+
+     geom_point(data = Pixel.melt, 
+                mapping = aes(x=wl, y=Reflectance, color=idf), 
+                pch=20, 
+                size=5)+
 
      # Add a legend for the color mapping with the label "Pixel id"
      labs(color = "Pixel id")+
@@ -434,7 +232,7 @@ Alternatively, we can translate the entire Sentinel-2 image, which is a `raster`
 
 ```{r}
 # Convert the Sentinel-2 raster image s2_rl to a data table with columns: x, y, and the pixel values (one column for each band)
-dat_all <- as.data.table(rasterToPoints(s2_rl))
+dat_all <- data.table::as.data.table(rasterToPoints(s2_rl))
 
 # Add a column with the id
 dat_all = dat_all <- dat_all %>% mutate(id = row_number())
@@ -452,71 +250,32 @@ colnames(dat_all)=wavelengths
 dt = na.omit(dat_all)
 ```
 
-Now we are going to use the ridgeline function. The ridgeline function creates a visualization of the density of the different band distributions along a common axis, using a series of vertically stacked curves. This visualization allows for easy comparison of distributions, as well as visualization of the distributional shape. Compared to histograms, ridgeline plots provide a more detailed view of the distribution of each variable by showing the density of the values in addition to their frequency. This can be especially useful when comparing multiple distributions, as ridgeline plots can help to identify differences in the shapes of the distributions that might not be apparent in histograms. Additionally, the stacked nature of ridgeline plots makes it easy to compare the distribution of a variable across different groups, such as different values of a categorical variable
+Now we are going to make a ridgeline plot which creates a visualization of the density of the different band distributions along a common axis, using a series of vertically stacked curves. This visualization allows for easy comparison of distributions, as well as visualization of the distributional shape. Compared to histograms, ridgeline plots provide a more detailed view of the distribution of each variable by showing the density of the values in addition to their frequency. This can be especially useful when comparing multiple distributions, as ridgeline plots can help to identify differences in the shapes of the distributions that might not be apparent in histograms. Additionally, the stacked nature of ridgeline plots makes it easy to compare the distribution of a variable across different groups, such as different values of a categorical variable
 
 ```{r}
 # Convert the wide format of 'dat_all' into a long format using the 'melt()' function
 # 'id.vars = "id"' specifies that the 'id' column should be used as the identifier variable,
 # 'value.name = "Reflectance"' specifies that the melted column should be named 'Reflectance',
-dat_mlt = melt(dat_all, id.vars = "id", value.name ="Reflectance")
+dat_mlt = reshape2::melt(dat_all, id.vars = "id", value.name ="Reflectance")
 
-# Create a ridgeline plot of the 'Reflectance' values for each 'id' in the 'dat_mlt' data frame
+# Create a ridgeline plot of the 'Reflectance' values for each wavelength in the 'dat_mlt' data frame
 # using the 'ridgeline()' function from the 'ggridges' package.
-# The 'Reflectance' values are plotted on the y-axis, and the 'id' values are plotted on the x-axis.
+# The 'Reflectance' values are plotted on the x-axis, and the wavelength groups are plotted on the y-axis.
 # The resulting plot is displayed in the output.
-ridgeline(dat_mlt$Reflectance,dat_mlt$variable)
+ggplot(dat_mlt, aes(x=Reflectance, y=variable)) + geom_density_ridges()
 ```
 
 ## Step 6: Prepare data for classification
 
 ### Download training data
 
-Now that we have learnt to download data from GEE (Steps 1+3) and do a prilimary analysis on it, we can actually start getting data for classification in a supervised classification exercise. Therefore, we are going to try to classify a Sentinel-2 image in different landcover classes. We are going to use the Sentinel-2 image we already downloaded as unknown input features `X` in order to classify each pixel in a class `Y`. Since we are going to do a supervised classification, we are going to need known labels to training data. In this exercise, we are going to use a earlier landcover [Worldcover](https://developers.google.com/earth-engine/datasets/catalog/ESA_WorldCover_v200) classification done by ESA as reference data.
-
-```{r}
-# Load the woldCover collection from GEE, select the Map band and convert it to an image with toBands 
-lc = ee$ImageCollection("ESA/WorldCover/v200")$select('Map')$toBands()  
-# Print image info
-ee_print(lc)
-```
-
-Subsequentlty we can visualize these layers in GEE.
-
-```{r}
-# Create visualisation setting
-colorizedVis <- list(
-  min=0.0,
-  max=100.0,
-  palette=c(
-    '006400', 'ffbb22', 'ffff4c', 'f096ff', 'fa0000', 'b4b4b4', 'f0f0f0',
-    '0064c8', '0096a0', '00cf75', '00cf75','fae6a0'
-  )
-)
-
-# Visualize interactively in GEE
-Map$addLayer(lc, colorizedVis, 'Worldcover') + Map$addLayer(S2_im2,list(bands=c("B4","B3","B2"),max=1000,min=0),"S2") + Map$addLayer(region.leuven)
-```
-
-Now we can download this Worldcover image to select our training data from it.
-
-```{r}
-lc_r <- ee_as_raster(lc, 
-                      region=region.leuven,
-                      via = "drive",
-                      scale = 10)
-
-```
+--\> GEE code editor
 
 Now save it to our hard disk and re-read it.
 
 ```{r}
-# Write it to raster on your computer
-writeRaster(lc_r,'./Rdata/lc_r.tif',options=c('TFW=YES'))
-```
-
-```{r}
 # Read raster from computer
-lc_r = raster('Rdata/lc_r.tif')
+lc_r = raster::raster('lc_r.tif')
 ```
 
 ### Sample training data
@@ -526,20 +285,20 @@ So now, we have both our training data `X` (i.e., spectral values per pixel) and
 ```{r}
 # Convert the raster object 'lc_r' into a spatial points data frame using the 'rasterToPoints()' function,
 # and save the resulting data table to the variable 'poly_dt' as a data table using 'as.data.table()'.
-poly_dt <- as.data.table(rasterToPoints(lc_r))
+poly_dt <- data.table::as.data.table(rasterToPoints(lc_r))
 
 # Select a random sample of 10,000 points from the 'poly_dt' data table using the 'sample()' function,
 # and save the resulting data table back to the variable 'poly_dt'.
-poly_dt = poly_dt[sample(1:nrow(poly_dt), 10000), ] 
+poly_dt = poly_dt[sample(1:nrow(poly_dt), 10000), ]
 
 # Rename the column 'lc_r' to 'id_cls' in the 'poly_dt' data table using the 'setnames()' function.
-setnames(poly_dt, old = "lc_r", new = "id_cls")
+data.table::setnames(poly_dt, old = "X2021_Map", new = "id_cls")
 
 # Create a new spatial points data frame 'points' using the 'SpatialPointsDataFrame()' function,
 # with the x and y coordinates taken from the 'poly_dt' data table and the attribute data and projection taken from the same table.
-points <- SpatialPointsDataFrame(coords = poly_dt[, .(x, y)],
-                                 data = poly_dt,
-                                 proj4string = lc_r@crs)
+points <- sp::SpatialPointsDataFrame(coords = poly_dt[, .(x, y)],
+                                     data = poly_dt,
+                                     proj4string = lc_r@crs)
 
 # Print the first few rows of the 'points' data frame to the console using the 'head()' function.
 # The output actually shows for every point the x,y coordinates and corresponding class.
@@ -553,8 +312,8 @@ Once we have the sample of `Y` points, we can start to sample the data from `X` 
 # Extract the attribute data from the spatial points data frame 'points' in the raster object 's2_rl' using the 'extract()' function,
 # and save the resulting data as a data table using the 'as.data.table()' function.
 dt <- s2_rl %>% 
-      terra::extract(y = points) %>% 
-      as.data.table 
+      extract(y = points) %>% 
+      as.data.table() 
 
 # Add a new column to the 'dt' data table called 'class', which is based on the 'id_cls' attribute of the original spatial points data frame.
 # The 'make.names()' function is used to ensure that the factor levels are valid column names.
@@ -562,21 +321,22 @@ dt[, class := make.names(factor(points@data$id_cls))]
 
 # Print the first few rows of the 'dt' data table to the console using the 'head()' function.
 head(dt)
-
 ```
 
-So this resulting table `dt` gives us for every sample the spectral reflectrance and corresponding class value. Since some pixels might still contain `NA` values that might mess up our classifiers, we need to remove the rows that contain `NA`'s.
+So this resulting table `dt` gives us for every sample the spectral reflectance and corresponding class value. Since some pixels might still contain `NA` values that might mess up our classifiers, we need to remove the rows that contain `NA`'s.
 
 ```{r}
 # Print the dimension before removing NA
-print(dim(dt))
+dim(dt)
 # Remove NA rows
-dt = na.omit(dt)
+dt <- na.omit(dt)
 # Print the dimension after removing NA
 print(dim(dt))
+
+table(dt$class)
 ```
 
-We can now calcalte the mean reflectance per class
+We can now calculate the mean reflectance per class
 
 ```{r}
 # calculate the mean for each group and each variable
@@ -600,9 +360,9 @@ After downloading and preparing the data we can start with the actual classifica
 set.seed(321) # set the seed for reproducibility
 
 # create a stratified random split of the data into training and testing sets
-idx_train <- createDataPartition(dt$class, # variable to stratify by
-                                 p = 0.7, # proportion of data to use for training
-                                 list = FALSE) # output as vector, not list
+idx_train <- caret::createDataPartition(dt$class, # variable to stratify by 
+                                        p = 0.7, # proportion of data to use for training
+                                        list = FALSE) # output as vector, not list
 
 # subset the original data to create the training and testing sets
 dt_train <- dt[idx_train] # subset the training set
@@ -617,19 +377,18 @@ The training dataset is used for carrying cross-validation (CV) and grid search 
 ```{r}
 # create cross-validation folds (splits the data into n random groups)
 n_folds <- 10 # number of folds
-folds <- createFolds(1:nrow(dt_train), k = n_folds) # create n_folds folds of the data
+folds <- caret::createFolds(1:nrow(dt_train), k = n_folds) # create n_folds folds of the data
 ```
 
-The `n_folds` variable determines the number of folds to use in the cross-validation process. The `folds \<- createFolds(1:nrow(dt_train), k = n_folds)` line creates `n_folds` random groups (or "folds") of the data for cross-validation purposes.
+The `n_folds` variable determines the number of folds to use in the cross-validation process. The `folds <- createFolds(1:nrow(dt_train), k = n_folds)` line creates `n_folds` random groups (or "folds") of the data for cross-validation purposes.
 
-Subsequently, we can set the seed for each iteration of the folds in a `seeds` variable that will store the random number seeds for each resampling iteration. This ensures that each resampling iteration has a unique random seed, which can be useful when running the process in parallel.
+Subsequently, we can set the seed for each iteration of the folds in a `seeds` variable that will store the random number seeds for each resampling iteration. This ensures that each resampling iteration has a unique random seed.
 
 ```{r}
 # Set the seed at each resampling iteration. Useful when running CV in parallel.
 seeds <- vector(mode = "list", length = n_folds + 1) # create empty list for seeds, +1 for the final model
 for(i in 1:n_folds) seeds[[i]] <- sample.int(1000, n_folds) # set seeds for each fold
 seeds[n_folds + 1] <- sample.int(1000, 1) # set seed for final model
-
 ```
 
 ### Control objects
@@ -638,18 +397,16 @@ Subsequently, we are going to use the `caret` package to train our classifiers. 
 
 -   Streamlined workflow: The caret package provides a consistent, streamlined workflow for building and evaluating machine learning models, with a consistent interface for many different modeling algorithms. As such it allows to test completely different classification algorithms (which were designed with a different syntax) by using a very similar syntax.
 
--   Cross-validation: The caret package makes it easy to perform cross-validation, a key step in model evaluation and hyperparameter tuning, with support for different types of cross-validation such as k-fold, repeated k-fold, and leave-one-out cross-validation.
+-   Cross-validation: The caret package makes it easy to perform cross-validation, a key step in model evaluation and hyper-parameter tuning, with support for different types of cross-validation such as k-fold, repeated k-fold, and leave-one-out cross-validation.
 
--   Hyperparameter tuning: The caret package provides tools for tuning hyperparameters of machine learning models, which can greatly improve model performance. The train() function in caret can automatically search through a grid of hyperparameter values and select the best-performing combination.
-
--   Parallelization: The caret package supports parallel computation, which can speed up model training and hyperparameter tuning on multi-core systems.
+-   Hyperparameter tuning: The caret package provides tools for tuning hyper-parameters of machine learning models, which can greatly improve model performance. The train() function in caret can automatically search through a grid of hyper-parameter values and select the best-performing combination.
 
 Here we will start by setting up a control object for a machine learning model using cross-validation. Such a control object is important for being able to compare the different type of models. Therefore, the `trainControl()` function is used to create the control object, and it includes several arguments:
 
 -   `summaryFunction`: specifies a summary function to be used in evaluating the model's performance. Here, multiClassSummary is used for multi-class classification problems.
 -   `method`: specifies the resampling method to be used. Here, cv indicates that k-fold cross-validation will be used.
 -   `number`: specifies the number of folds to be used in cross-validation. The value of n_folds is passed to this argument.
--   `search`: specifies the search method to be used for hyperparameter tuning. Here, grid indicates that a grid search will be used.
+-   `search`: specifies the search method to be used for hyper-parameter tuning. Here, grid indicates that a grid search will be used.
 -   `classProbs`: specifies whether to include class probabilities in the model output. It is set to TRUE, but a warning will be issued because it is not implemented for SVM models.
 -   `savePredictions`: specifies whether to save the predicted values for each fold. It is set to TRUE.
 -   `index`: specifies the resampling indexes to be used. The folds variable is passed to this argument.
@@ -668,42 +425,26 @@ ctrl <- trainControl(summaryFunction = multiClassSummary,
 
 Once we have set up this control object for cross-validation we can start training the model.
 
-## Step8 : Random Forest classifier
+## Step 8 : Random Forest classifier
 
 We will start by training a Random Forest classifier using the `caret` package.
 
 ```{r}
-# Register a doParallel cluster, using 3/4 (75%) of total CPU-s
-cl <- makeCluster(3/4 * detectCores()) # detectCores() finds the number of CPU cores
-registerDoParallel(cl) # register the cluster with foreach package
-
-# create a control object for train() function to use
-ctrl <- trainControl(method = "cv", number = 5, verboseIter = TRUE, allowParallel = TRUE)
-
 # train a random forest model using caret::train()
 model_rf <- caret::train(class ~ . , # class ~ .: specifies the formula for the model, where class is the target variable and . indicates that all other variables in the dt_train dataset should be used as predictors.
                          method = "rf", # method: specifies the machine learning method to be used. Here, rf indicates that a random forest model will be used.
                          data = dt_train, # data: specifies the data used for training the model.
                          importance = TRUE, #  specifies whether to calculate variable importance.
-                         allowParallel = TRUE, # enable parallel computation during cross-validation
                          tuneGrid = data.frame(mtry = c(2, 3, 4, 5, 8)), # specifies the hyperparameters to be tuned during cross-validation. Here, mtry (the number of variables to consider at each split) is varied across a range of values.
                          trControl = ctrl) # specifies the control object to be used for cross-validation. 
-
-# stop and remove the parallel cluster
-stopCluster(cl)
-remove(cl)
-
-# unregister the doParallel cluster so that we can use sequential operations if needed
-registerDoSEQ()
 
 # save the trained model as an RDS file
 saveRDS(model_rf, file = "./cache/model_rf.rds")
 
+# Load the model again
+# model_rf = readRDS('./cache/model_rf.rds')
 ```
 
-```{=plain}
-model_rf = readRDS('./cache/model_rf.rds')
-```
 Tuning here was done via the `mtry` argument, which can vary from 2 up to total number of predictors (bands) used (here, 12). So, the optimization was done via cross validation and grid search (here by grid I refer to `tuneGrid = data.frame(mtry = c(2, 3, 4, 5, 8))`).
 
 ```{r}
@@ -714,8 +455,6 @@ model_rf$times$everything # Print the total computation time
 plot(model_rf) # Plot the tuning results
 ```
 
-The plot shows that the final/optimal model stored in `model_rf,` corresponds to `mtry` = 3 with the highest accuracy = 0.876.
-
 #### Confusion matrix
 
 Now we can compute the confusion matrix and associated statistics using the test data. A confusion matrix indicates how "confused" the model is between the given classes and highlights instances in which one class is confused for another. The main (first) diagonal of the matrix shows the cases when the model is "correct". The next cell creates a confusion matrix `cm_rf` using the `confusionMatrix()` function from the caret package. The function takes as input two arguments:
@@ -724,27 +463,7 @@ Now we can compute the confusion matrix and associated statistics using the test
 -   `as.factor(dt_test$class)`: the true class labels from the `dt_test` dataset, converted to a factor variable.
 
 ```{r}
-# Calculate the prediction data for the test set
-dat_x = predict(model_rf, newdata = dt_test)
-# Get the reference test date
-dat_y = as.factor(dt_test$class)
-# Calculate confusion matrix
-cm_rf <- confusionMatrix(data = dat_x, dat_y)
-cm_rf
-```
-
-When calculating the confusion matrix, you compare the different classes. When sampling sparse classes it could be the case that some of your classes are not represented within the prediction or test set. If this happens, the confusion matrix cannot be calculated. One solution to that is to hardcode the potential classes.
-
-```{r}
-# Set class names
-dat_levels = c("X10","X30","X40","X50","X60","X80")
-# Calculate the prediction data for the test set
-dat_x = predict(model_rf, newdata = dt_test, levels= dat_levels)
-# Get the reference test date
-dat_y = as.factor(dt_test$class)
-levels(dat_y)=dat_levels
-# Calculate confusion matrix
-cm_rf <- confusionMatrix(data = dat_x, dat_y)
+cm_rf <- caret::confusionMatrix(data = predict(model_rf, newdata = dt_test),as.factor(dt_test$class))
 cm_rf
 ```
 
@@ -762,8 +481,7 @@ caret::varImp(model_rf)$importance %>%
   # Convert data frame to matrix
   as.matrix() %>%
   # Create heatmap visualization using plot_ly() function
-  plot_ly(x = colnames(.), y = rownames(.), z = ., type = "heatmap", width = 350, height = 300)
-
+  plotly::plot_ly(x = colnames(.), y = rownames(.), z = ., type = "heatmap", width = 350, height = 300)
 ```
 
 The predictor importance shows that some bands are more important than other variables for the classification.
@@ -774,38 +492,29 @@ Compare the predictor importance with your earlier plot of the spectral profiles
 
 ## Step 9: SVM
 
-OK, so we have trained one RF model, but off course we can also train some completely different models. On the [caret help page]() you can find a complete list of model types that can be used in caret and which relevant characteristics are set there.
+OK, so we have trained one RF model, but of course we can also train some completely different models. On the [caret help page]() you can find a complete list of model types that can be used in caret and which relevant characteristics are set there.
 
-For example, we can train a support [vector machine model](https://en.wikipedia.org/wiki/Support_vector_machine) (SVM). In this case we are going to fine tune two different SVM models with different values of the cost parameter and the Loss function to be used in the SVM model. The cost parameter in SVM determines the penalty for misclassification of training samples. It controls the balance between achieving a low training error and a low testing error. The loss function in SVM determines the type of error measure that the SVM model will optimize during training.
+For example, we can train a [support vector machine model](https://en.wikipedia.org/wiki/Support_vector_machine) (SVM). In this case we are going to fine tune two different SVM models with different values of the cost parameter and the Loss function to be used in the SVM model. The cost parameter in SVM determines the penalty for misclassification of training samples. It controls the balance between achieving a low training error and a low testing error. The loss function in SVM determines the type of error measure that the SVM model will optimize during training.
 
 ```{r}
 # Grid of tuning parameters for SVM model
 svm_grid <- expand.grid(cost = c(0.2, 0.5, 1), # Different values of cost parameter
                         Loss = c("L1", "L2")) # Different values of loss function
 
-# Create a parallel processing cluster and register it with the doParallel package
-cl <- makeCluster(3/4 * detectCores())
-registerDoParallel(cl)
-
 # Train an SVM model using caret package
 model_svm <- caret::train(class ~ . , method = "svmLinear3", data = dt_train,
-                         allowParallel = TRUE, 
                          importance = TRUE, #  specifies whether to calculate variable importance.
                          tuneGrid = svm_grid,
                          trControl = ctrl)
 # Notice that  I didn’t bother to make another ctrl object for SVM, so it works to recycle the one used for the random forests models with ignoring the warning: Class probabilities were requested for a model that does not implement them.
 
-# Stop and remove parallel processing cluster, and register sequential processing backend
-stopCluster(cl); remove(cl)
-registerDoSEQ()
-
 # Save the trained SVM model object to a file using saveRDS() function
 saveRDS(model_svm, file = "./cache/model_svm.rds")
+
+# Load the model again
+# model_svm = readRDS('./cache/model_svm.rds')
 ```
 
-```{=plain}
-model_svm = readRDS('./cache/model_svm.rds')
-```
 Now we can again see which model performs best.
 
 ```{r}
@@ -820,7 +529,7 @@ cm_svm <- confusionMatrix(data = predict(model_svm, newdata = dt_test), as.facto
 cm_svm
 ```
 
-Here you notice that the SVM models performs less than the SVM model.
+Here you notice that the SVM models performs less well than the RF model.
 
 ## Step 10: Neural Network
 
@@ -831,28 +540,19 @@ Finally, we can test a third different type of ML classifier, namely a Neural Ne
 nnet_grid <- expand.grid(size = c(5, 10, 15),
                          decay = c(0.001, 0.01, 0.1))
 
-# create a parallel backend for caret using 3/4 of the CPU cores
-cl <- makeCluster(3/4 * detectCores())
-registerDoParallel(cl)
-
 # train the nnet model using the defined grid of tuning parameters, with parallel processing
-model_nnet <- train(class ~ ., method = 'nnet', data = dt_train,
-                    maxit = 1000, # set high enough so to be sure that it converges
-                    allowParallel = TRUE,
-                    tuneGrid = nnet_grid,
-                    trControl = ctrl)
-
-# stop the parallel backend and unregister it
-stopCluster(cl); remove(cl)
-registerDoSEQ()
+model_nnet <- caret::train(class ~ ., method = 'nnet', data = dt_train,
+                           maxit = 1000, # set high enough so to be sure that it converges
+                           tuneGrid = nnet_grid,
+                           trControl = ctrl)
 
 # save the trained nnet model as an RDS file
 saveRDS(model_nnet, file = "./cache/model_nnet.rds")
+
+# Load the model again
+# model_nnet = readRDS('./cache/model_nnet.rds')
 ```
 
-```{=plain}
-model_nnet = readRDS('./cache/model_nnet.rds')
-```
 Now we can again see which model performs best.
 
 ```{r}
@@ -867,11 +567,11 @@ cm_nnet <- confusionMatrix(data = predict(model_nnet, newdata = dt_test), as.fac
 cm_nnet
 ```
 
-Here you notice that the NN model performs slighty less than the RF model, but better than the SVM model.
+Here you notice that the NN model performs slightly less than the RF model, but better than the SVM model.
 
 ## Step 11: Compare models performance
 
-Once we have trained and fine-tuned the different models, we can compare the models using the resamples() function. We can only do this as long as the train indices of the observations match (which we made sure they do by setting specific seeds). Here we compare the results obtained via cross validation on the train dataset when we tuned the models.
+Once we have trained and fine-tuned the different models, we can compare the models using the resamples() function. We can only do this as long as the train indices of the observations match (which we made sure they do by setting specific seeds). Here we compare the results obtained via cross validation on the train data set when we tuned the models.
 
 ```{r}
 # Create model_list
@@ -887,7 +587,7 @@ In general, the model with the higher median accuracy is the "winner", as well a
 bwplot(resamples)
 ```
 
-Here we see that in general the RF model performs best for our data set and tuning, so we will preferably use that model for later purposes if we want to continue with this. Remember however that there is typically not one best method for all data sets. So when you are faced with a new data set, it might be important to again compare different models and different hyperparameter settings.
+Here we see that in general the RF model performs best for our data set and tuning, so we will preferably use that model for later purposes if we want to continue with this. Remember however that there is typically not one best method for all data sets. So when you are faced with a new data set, it might be important to again compare different models and different hyper-parameter settings.
 
 Finally, we can also plot the output of the different models. Therefore, we first need to apply the trained models to every pixel in the image
 
@@ -900,17 +600,17 @@ predict_nnet <- raster::predict(object = s2_rl, model = model_nnet, type = 'raw'
 These lines use the trained machine learning models to predict the class of each pixel in a raster object. Specifically, the `raster::predict()` function is called for each model, passing the trained model and the raster object `s2_rl` as input. The type = 'raw' argument indicates that we want to get the raw predicted values (not the class probabilities). The predicted values for each model are stored in separate variables `predict_rf`, `predict_svm`, and `predict_nnet`.
 
 ```{r}
-sync(viewRGB(s2_rl, r = 4, g = 3, b = 2)+mapView(lc_r),
-     mapView(predict_rf), 
-     mapView(predict_svm),
-     mapView(predict_nnet))
+leafsync::sync(viewRGB(s2_rl, r = 4, g = 3, b = 2)+mapView(lc_r, maxpixels = 1242110), 
+               mapView(predict_rf, maxpixels = 1242110), 
+               mapView(predict_svm, maxpixels = 1242110), 
+               mapView(predict_nnet, maxpixels = 1242110))
 ```
 
 Now you can compare the original map of WorldCover with our own predictions.
 
-#### Q3: model comparison
+#### Q3: Model comparison
 
-Compare the different models and discuss their performance in terms of overall accuracy and how well they spatially capture the landcover patterns.
+Compare the different models and discuss their performance in terms of overall accuracy and how well they spatially capture the land cover patterns.
 
 ## Step 12: GCLM
 
@@ -931,7 +631,6 @@ rglcm <- glcm(s2_rl[[4]],
 
 # Plot the GLCM
 plot(rglcm)
-
 ```
 
 or we can calculate rotation-invariant texture features. This means that the e textural features are calculated in all 4 directions (0°, 45°, 90° and 135°) and then combined to one rotation-invariant texture. The key for this is the shift parameter.
@@ -956,17 +655,9 @@ plot(rglcm1)
 
 Add the GLCM output as additional input to the classifier to check if the spatial context improves the classification performance.
 
-## Step X: unmixing
+## Step 13: Unmixing
 
-In the final step we are also going to implement a unmixing example. This step is optional as installing the `RStoolbox` package needs to done from the github page and can be tricky
-
-```{r}
-# Install package of RS tools that are useful
-remotes::install_github("bleutner/RStoolbox")
-library(RStoolbox)
-```
-
-If succesfully installed, we can start unmixing
+In the final step we are also going to implement a unmixing example.
 
 The "mesma" unmixing algorithm is a spectral unmixing method that can be used to decompose a multispectral image into its constituent spectral endmembers and their corresponding fractional abundances in each pixel. This algorithm is implemented in the R package `RSToolbox`.
 
@@ -991,29 +682,30 @@ In this case I selected a `forest`, `grass` and `soil` pixel. The algorithm then
 ```{r}
 # Create the endmember spectra
 em = ct[4:15]
-rownames(em) = c('forest','soil','grass','urban')
+rownames(em) = c('forest','soil','grass')
 
 # Do the unmixing
-probs <- mesma(s2_rl, em, method = "NNLS",verbose=TRUE)
+probs <- RStoolbox::mesma(s2_rl, em, method = "NNLS", verbose=TRUE)
 ```
 
 Subsequently, we can visualize the output
 
 ```{r}
-sync(viewRGB(s2_rl, r = 4, g = 3, b = 2)+mapView(lc_r),
-     mapView(probs$forest)+mapView(probs$soil)+mapView(probs$grass),
-     mapView(probs$RMSE))
+sync(viewRGB(s2_rl, r = 4, g = 3, b = 2) + 
+     mapView(lc_r, maxpixels = 1242110), mapView(probs$forest, maxpixels = 1242110) +
+     mapView(probs$soil, maxpixels = 1242110) + 
+     mapView(probs$grass, maxpixels = 1242110), mapView(probs$RMSE, maxpixels = 1242110))
 ```
 
 ## Step 14: Do it yourself
 
 -   Download a Sentinel-2 image over your home location that is roughly 5x5km centered on your home location
--   Download the corresponding Worldcover map over your home location
--   Visualize both the satellite image and landcover map
--   Optimize three different landcover classifiers over your home location and assess their accuracy
+-   Download the corresponding WorldCover map over your home location
+-   Visualize both the satellite image and land cover map
+-   Optimize three different land cover classifiers over your home location and assess their accuracy
 -   Assess the feature importance of the input data for accurate classification
 -   Repeat the classification but by using only the red, green and blue band
 -   Compare the full models with the simplified RGB model
--   Perform an unmixing over your home area and compare that with the landcover classes.
+-   Perform an unmixing over your home area and compare that with the land cover classes
 
 ## Done
