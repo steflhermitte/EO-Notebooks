@@ -460,10 +460,11 @@ plot(model_rf) # Plot the tuning results
 Now we can compute the confusion matrix and associated statistics using the test data. A confusion matrix indicates how "confused" the model is between the given classes and highlights instances in which one class is confused for another. The main (first) diagonal of the matrix shows the cases when the model is "correct". The next cell creates a confusion matrix `cm_rf` using the `confusionMatrix()` function from the caret package. The function takes as input two arguments:
 
 -   `data`: a vector of predicted class labels, obtained by applying the trained `model_rf` on the test dataset `dt_test` using the `predict()` function.
--   `as.factor(dt_test$class)`: the true class labels from the `dt_test` dataset, converted to a factor variable.
+-   `factor(dt_test$class,levels=...)`: the true class labels from the `dt_test` dataset, converted to a factor variable, where we can either hardcode the potential levels (e.g. `c('X10','X30','X40','X50','X60','X80')` or get them from the training data (e.g., `levels(as.factor(dt_train$class))`))
 
 ```{r}
-cm_rf <- caret::confusionMatrix(data = predict(model_rf, newdata = dt_test),as.factor(dt_test$class))
+cm_rf <- caret::confusionMatrix(data = predict(model_rf, newdata = dt_test),factor(dt_test$class,levels=c('X10','X30','X40','X50','X60','X80'))) 
+cm_rf <- caret::confusionMatrix(data = predict(model_rf, newdata = dt_test),factor(dt_test$class,levels=levels(as.factor(dt_train$class)))) 
 cm_rf
 ```
 
@@ -525,7 +526,7 @@ Or get the confusion matrix
 
 ```{r}
 # The confusion matrix using the test dataset
-cm_svm <- confusionMatrix(data = predict(model_svm, newdata = dt_test), as.factor(dt_test$class))
+cm_svm <- confusionMatrix(data = predict(model_svm, newdata = dt_test), factor(dt_test$class,levels=levels(as.factor(dt_train$class)))) 
 cm_svm
 ```
 
@@ -563,7 +564,7 @@ Or get the confusion matrix
 
 ```{r}
 # The confusion matrix using the test dataset
-cm_nnet <- confusionMatrix(data = predict(model_nnet, newdata = dt_test), as.factor(dt_test$class))
+cm_nnet <- confusionMatrix(data = predict(model_nnet, newdata = dt_test), factor(dt_test$class,levels=levels(as.factor(dt_train$class)))) 
 cm_nnet
 ```
 
