@@ -1,0 +1,670 @@
+---
+title: "RSVSW - Practical session 4: Time series analysis"
+output: 
+  pdf_document: default
+  html_document: default
+  chunk_output_type: inline
+  chunk_output_type: inline
+---
+
+Check if `getwd()` returns the correct working directory (the folder where this .Rmd file is stored).
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=TRUE)
+knitr::opts_knit$set(root.dir="")
+getwd()
+```
+
+# RSVSW - Practical session 4: Time series analysis
+
+## 1 Introduction
+
+The objectives of this session are:
+
+-   Understand key concepts related to time series analysis in the context of monitoring of vegetation dynamics with satellite remote sensing imagery
+
+-   
+
+-   ~~Determine the land cover type of nine Enhanced Vegetation Index (EVI) time series by comparing them to reference time series of various land cover types and mark them on the global map (Figure below)~~
+
+-   ~~Examine the decomposed EVI time series and compare their dynamics with Standardized Precipitation-Evapotranspiration Index (SPEI) time series~~
+
+![](Rimages/LocationTS.png)
+
+During this practical session, you won't have to do a lot of coding yourself, instead the focus lies on understanding what the code is doing and interpreting the outputs. You are encouraged to look up unfamiliar functions with `?` or the `help()` function and think about how they fit into these scripts. Answer the questions that are scattered throughout the notebook.
+
+## 2 Packages
+
+As always, we begin by taking care of the packages we need for this session. This piece of code first creates a list containing the required packages and then runs them through a for-loop to check if they are installed or not. If a package is not installed yet, it will be installed with the `install.packages()` function. Afterwards, all the required packages are loaded with the `library()` function.
+
+```{r}
+# Create a list with the required packages
+requiredPackages <- c("bfast", "scales", "corrplot", "matrixStats", "reshape", "ggplot2", "phenofit","tidyverse")
+
+# Check if required packages are installed; if a package is not installed, install it; then load the packages
+for (package in requiredPackages) {
+  if (!require(package, character.only=TRUE)) {
+    install.packages(package, dependencies=TRUE)
+  }
+  library(package, character.only=TRUE)
+}
+```
+
+## 3 Settings
+
+Next, we make sure that we are able to import the provided data easily. Modify `dir_wor` to provide the correct path to the directory where you stored the files for this session. We will load in data from `dir_data` and save intermediate results in `dir_results`.
+
+```{r}
+# dir_wor <- "..."
+# setwd(dir_wor)
+dir_data <- "./Data" # Relative path to the directory where the given data is stored
+files <- list.files(dir_data) # Get list of filenames in dir_data
+dir_results <- "./results" # Relative path to the directory where results are saved
+saveFlag <- TRUE # Set to TRUE if you want to save the output time series
+```
+
+## 4 Load data
+
+In this session, we will work with a product derived from [MODIS](https://lpdaac.usgs.gov/data/get-started-data/collection-overview/missions/modis-overview/) imagery named [MOD13A2](https://developers.google.com/earth-engine/datasets/catalog/MODIS_061_MOD13A3) and with potential drivers for vegetation response, being [monthly mean temperature from ERA5 reanalysis](https://developers.google.com/earth-engine/datasets/catalog/ECMWF_ERA5_MONTHLY) and a [SPEI drought index](https://developers.google.com/earth-engine/datasets/catalog/CSIC_SPEI_2_9) which you can download using a [GEE script](https://code.earthengine.google.com/b93ad1ebbb11e2cd3d1328c1dd31e2f3).
+
+MODIS ([Mod]{.underline}erate-resolution [I]{.underline}maging [S]{.underline}pectroradiomater) is a satellite-based sensor on board of the the Aqua and Terra satellites. The sensor captures 36 spectral bands ranging from 400 nm to 1440 nm at varying spatial resolutions (2 bands at 250 m, 5 bands at 500 m and 29 bands at 1 km). Since 2000, the two sensors provide global coverage every 1 to 2 days.
+
+The MOD13A3 product provides 16-day composites for two Vegetation Indices (VIs) at a spatial resolution of 1 km. The first is the Normalized Difference Vegetation Index (NDVI) and the second one is the Enhanced Vegetation Index (EVI), which has improved sensitivity over high biomass regions. We will use EVI time series data is this session.
+
+The `files` variable contains the file names of all the files we will use today. Below you can find a description of these data.
+
+We have nine time series with unknown [l]{.underline}and [c]{.underline}over [t]{.underline}ypes (lct):
+
+-   **unk_EVI_ts** contains nine EVI time series with unknown land cover types
+
+-   **unk_EVI_qual** contains VI Quality Assurance (QA) values of the nine time series with unknown land cover types, expressed at bit flags that can be covered to integer values; the table below contains the meaning of the values
+
+    +--------------------------------------+--------------------------------------------------------------------------------+
+    | QA indicator                         | Value - Meaning                                                                |
+    +======================================+================================================================================+
+    | MODLAND QA                           | 0 - VI produced, good quality\                                                 |
+    |                                      | 1 - VI, produced, but check other QA\                                          |
+    |                                      | 2 - Pixel produced, but most likely cloudy\                                    |
+    |                                      | 3 - Pixel not produced due to other reasons than clouds                        |
+    +--------------------------------------+--------------------------------------------------------------------------------+
+    | VI usefulness                        | 0 - Highest quality\                                                           |
+    |                                      | 1 - Lower quality\                                                             |
+    |                                      | 2-11 - Decreasing quality\                                                     |
+    |                                      | 12 - Lowest quality\                                                           |
+    |                                      | 13 - Quality so low that it is not useful\                                     |
+    |                                      | 14 - L1B data faulty\                                                          |
+    |                                      | 15 - Not useful for any other reason/not processed                             |
+    +--------------------------------------+--------------------------------------------------------------------------------+
+    | Aerosol quantity                     | 0 - Climatology\                                                               |
+    |                                      | 1 - Low\                                                                       |
+    |                                      | 2 - Average\                                                                   |
+    |                                      | 3 - High                                                                       |
+    +--------------------------------------+--------------------------------------------------------------------------------+
+    | Adjacent cloud detected              | 0 - No\                                                                        |
+    |                                      | 1 - Yes                                                                        |
+    +--------------------------------------+--------------------------------------------------------------------------------+
+    | Atmosphere BRDF correction performed | 0 - No\                                                                        |
+    |                                      | 1 - Yes                                                                        |
+    +--------------------------------------+--------------------------------------------------------------------------------+
+    | Mixed clouds                         | 0 - No\                                                                        |
+    |                                      | 1 - Yes                                                                        |
+    +--------------------------------------+--------------------------------------------------------------------------------+
+    | Land/Water Flag                      | 0 - Shallow ocean\                                                             |
+    |                                      | 1 - Land (Nothing else but land)\                                              |
+    |                                      | 2 - Ocean coastlines and lake shorelines\                                      |
+    |                                      | 3 - Shallow inland water\                                                      |
+    |                                      | 4 - Ephemeral water\                                                           |
+    |                                      | 5 - Deep inland water\                                                         |
+    |                                      | 6 - Moderate or continental ocean\                                             |
+    |                                      | 7 - Deep ocean                                                                 |
+    +--------------------------------------+--------------------------------------------------------------------------------+
+    | Geo-spatial quality                  | \<= 25% of the finer 1 km resolution contributed to this CMG pixel\            |
+    |                                      | \> 25% and \<= 50% of the finer 1 km resolution contributed to this CMG pixel\ |
+    |                                      | \> 50% and \<= 70% of the finer 1 km resolution contributed to this CMG pixel\ |
+    |                                      | \> 75% of the finer 1 km resolution contributed to this CMG pixel              |
+    +--------------------------------------+--------------------------------------------------------------------------------+
+
+-   **unk_EVI_rel** contains the Pixel Reliability of the nine time series with unknown land cover types; the table below contains the meaning of the values
+
+    +--------------+---------------+------------------------------------------+
+    | Value        | Key           | Summary QA description                   |
+    +==============+===============+==========================================+
+    | -1           | Fill/No Data  | Not processed                            |
+    +--------------+---------------+------------------------------------------+
+    | 0            | Good data     | Use with confidence                      |
+    +--------------+---------------+------------------------------------------+
+    | 1            | Marginal data | Useful, but look at other QA information |
+    +--------------+---------------+------------------------------------------+
+    | 2            | Snow/Ice      | Target covered with snow/ice             |
+    +--------------+---------------+------------------------------------------+
+    | 3            | Cloudy        | Target not visible, covered with cloud   |
+    +--------------+---------------+------------------------------------------+
+    | 4            | Estimated     | From MODIS historic time series          |
+    +--------------+---------------+------------------------------------------+
+
+-   **unk_EVI_timesat_startSeas** contains the "start of season" seasonality parameter for the time series with unknown land cover types calculated with the [TIMESAT](https://www.researchgate.net/publication/306166995_TIMESAT_A_Software_Package_for_Time-Series_Processing_and_Assessment_of_Vegetation_Dynamics) algorithm, expressed as DOY (Day Of Year)
+
+-   **unk_EVI_timesat_midSeas** contains the "middle of season" seasonality parameter for the time series with unknown land cover types calculated with the [TIMESAT](https://www.researchgate.net/publication/306166995_TIMESAT_A_Software_Package_for_Time-Series_Processing_and_Assessment_of_Vegetation_Dynamics){style="font-size: 11pt;"} algorithm, expressed as DOY (Day Of Year)
+
+-   **unk_EVI_timesat_endSeas** contains the "end of season" seasonality parameter for the time series with unknown land cover types calculated with the [TIMESAT](https://www.researchgate.net/publication/306166995_TIMESAT_A_Software_Package_for_Time-Series_Processing_and_Assessment_of_Vegetation_Dynamics){style="font-size: 11pt;"} algorithm, expressed as DOY (Day Of Year)
+
+We have 16 "reference" time series with known land cover types:
+
+-   **ref_EVI_ts** contains EVI time series of 16 reference land cover types
+
+-   **ref_ECI_seas** contains the seasonality of 16 reference land cover types
+
+-   **ref_lct_names** contains a list with the names of 16 reference land cover types
+
+Climatic data:
+
+-   **unk_spei** contains Standardised Precipitation Evapotranspiration (SPEI) time series for the nine time series with unknown land cover types
+
+The files in the Data folder were originally created in R using the `save()` function. The `load()` function allows to reload such data. `load()` takes as input an argument `file` which should contain a character string with the path to the file to load. This string can be constructed easily with the `file.path()` function which allows you to construct the path to a file. Now let's actually load in the data.
+
+```{r}
+# Load files
+for (f in files) {
+  load(file=file.path(dir_data, f))
+}
+```
+
+### 4.1 Load MODIS data
+
+```{r}
+# Read the CSV file for the MODIS data 
+MOD <- read.csv("Data/MODIS_time_series.csv", stringsAsFactors = FALSE)
+
+# Process the 'values' column
+parsed_values <- sapply(MOD$values, function(x) {
+  # Extract key-value pairs from the string
+  pairs <- gsub("\\{|\\}", "", strsplit(gsub("=", ":", x), ", ")[[1]])
+  # Convert key-value pairs to a named vector
+  as.numeric(unlist(lapply(strsplit(pairs, ":"), function(pair) pair[2])))
+})
+
+# Assign values to new columns
+MOD$EVI <- parsed_values[1, ]
+MOD$NDVI <- parsed_values[2, ]
+MOD$QA <- parsed_values[3, ]
+MOD$pixel=substr(MOD$system.index,12,13)
+
+# Create a EVI, NDVI and QA data frame
+EVI = data.frame(MOD$date,MOD$EVI,MOD$pixel)
+NDVI = data.frame(MOD$date,MOD$NDVI,MOD$pixel)
+QA = data.frame(MOD$date,MOD$QA,MOD$pixel)
+
+# Convert to a matrix structure
+EVI = pivot_wider(EVI, names_from = MOD.pixel, values_from = MOD.EVI)
+NDVI = pivot_wider(NDVI, names_from = MOD.pixel, values_from = MOD.NDVI)
+QA = pivot_wider(QA, names_from = MOD.pixel, values_from = MOD.QA)
+
+```
+
+### 4.2 Load ERA5 temperature data
+
+```{r}
+# Read the CSV file
+ERA <- read.csv("Data/ERA5T_time_series.csv", stringsAsFactors = FALSE)
+
+# Process the 'values' column
+parsed_values <- sapply(ERA$values, function(x) {
+  # Extract key-value pairs from the string
+  pairs <- gsub("\\{|\\}", "", strsplit(gsub("=", ":", x), ", ")[[1]])
+  # Convert key-value pairs to a named vector
+  as.numeric(unlist(lapply(strsplit(pairs, ":"), function(pair) pair[2])))
+})
+
+# Assign values to new columns
+ERA$t2m <- parsed_values
+ERA$pixel=substr(ERA$system.index,8,8)
+
+# Create a EVI, NDVI and QA data frame
+ERA = data.frame(ERA$date,ERA$t2m,ERA$pixel)
+
+# Convert to a matrix structure
+ERA = pivot_wider(ERA, names_from = ERA.pixel, values_from = ERA.t2m)
+```
+
+### 4.3 Load SPEI drought data
+
+```{r}
+# Read the CSV file
+SPEI <- read.csv("Data/SPEI_time_series.csv", stringsAsFactors = FALSE)
+
+# Process the 'values' column
+parsed_values <- sapply(SPEI$values, function(x) {
+  # Extract key-value pairs from the string
+  pairs <- gsub("\\{|\\}", "", strsplit(gsub("=", ":", x), ", ")[[1]])
+  # Convert key-value pairs to a named vector
+  as.numeric(unlist(lapply(strsplit(pairs, ":"), function(pair) pair[2])))
+})
+
+# Assign values to new columns
+SPEI$spei <- parsed_values
+SPEI$pixel=substr(SPEI$system.index,12,13)
+
+# Create a EVI, NDVI and QA data frame
+SPEI = data.frame(SPEI$date,SPEI$spei,SPEI$pixel)
+
+# Convert to a matrix structure
+SPEI = pivot_wider(SPEI, names_from = SPEI.pixel, values_from = SPEI.spei)
+```
+
+##  Functions
+
+In this section we define a function `ConvertBitWordVIQ` that we use when pre-processing the time series. The MOD13 product includes bands with Quality Assurance (QA) flags that say something about the pixel quality. We will use this function to convert the bitwords to integer values so that we can use them to mask out noisy pixels. Run the R chunk to load the function into your environment.
+
+```{r}
+# Input: QA - a matrix containing bitwords
+bitsToInt <- function(x) {
+  packBits(rev(c(rep(FALSE, 32-length(x)%%32), as.logical(x))), "integer")
+}
+```
+
+## 6 Exercises
+
+### Step 1 Data exploration
+
+#### **1.1** Explore the data
+
+Check out the dimensions of the matrices that contain the time series with `dim()`. Each row represents a time series and each column represents a time step.
+
+```{r}
+dim(EVI)
+dim(ERA)
+dim(SPEI)
+```
+
+#### 1.2 Visualize the time series data
+
+Now we plot the nine time series with unknown land cover types. We chose to name the time series with letters from A to I. We use `par(mfrow=c(3,3))` to split the plot screen in nine panels (three by three) so we can plot the time series in one window. The `ts()` function is used to convert the `numeric` objects into objects of class `ts`, which stand for time series. The `plot.ts()` function is used to plot the `ts` objects.
+
+Notice the ranges of the y-axes:
+
+-   We expect EVI values to range between -1 and 1, but here the values are much higher. This suggests that these data have not properly scaled yet, and we still have to apply a scale factor to the data. We will do this later.
+
+-   The graphs are difficult to compare because the range of the y-axis is not the same in each graph. In the next graphs, we will manually set a fixed range range for the y-axis.
+
+```{r}
+# Create a list of titles for the plots
+unk_lct_names <- c("A", "B", "C", "D", "E", "F", "G", "H", "I")
+
+# Plot the time series in variable unk_EVI_ts
+par(mfrow=c(3,3))
+for (i in 1:(ncol(EVI)-1)) {
+  tm <- ts(EVI[,i+1], start=c(2002,1,1), frequency=12)
+  ts.plot(tm, gpars=list(xlab="Time", ylab="EVI", main=unk_lct_names[i], 
+                         pch=c(5,2), lty=c(1,1), col=c("red"))
+          )
+}
+```
+
+### Step 2 Pre-processing
+
+#### **2.1 Re-scaling and dealing with NAs**
+
+The first column of the `EVI` variable contains NA values.
+
+The MOD13C2 product has a valid data range of -2000 to 10000 and a scale factor of 0.0001. Fill in the correct values of the lower and upper limit, and multiply the time series with the scale factor. Do this by replacing the incorrect -9999 values.
+
+```{r}
+# Create copy of intermediate result
+EVI_ts_sc <- as.data.frame(EVI[,2:ncol(EVI)]) # "sc" for "scaled"
+
+# Set nan values to NA
+# EVI_ts_sc[is.nan(EVI_ts_sc) == T] <- NA
+
+# Set data outside valid range EVI as NaN
+EVI_ts_sc[EVI_ts_sc < -2000] <- NA # Provide the lower limit
+EVI_ts_sc[EVI_ts_sc > 10000] <- NA # Provide the upper limit
+
+# Multiply with scale factor
+EVI_ts_sc <- EVI_ts_sc*0.0001 # Provide the scale factor
+```
+
+Check if the EVI values now indeed range between -1 and 1.
+
+#### **2.2 Masking out noisy observations**
+
+```{r}
+# Convert VI quality bit words to integer values
+QAindicators <- ConvertBitWordVIQ(QA)
+```
+
+Next, set low quality data as NA. The 'QAindicators' variable shows the names of the QA indicators. Search in Table 1.1 to choose which low quality data you want to set as missing. Note that not all flags are equally relevant. An example code line for mixed clouds is given. Choose which other quality flags you would like to mask out. Repeat and adapt the code for other quality flags.
+
+```{r T1.3}
+# Create copy of intermediate result
+EVI_ts_sc_mk = EVI_ts_sc # "mk" for "masked"
+QA2 = QA[,2:ncol(QA)]
+msk = apply(QA2, FUN=function(x) {bitsToInt(as.integer(intToBits(x)[1:2])[2:1])},MARGIN=c(1,2))
+
+# Set low quality data as missing
+EVI_ts_sc_mk[msk > 0] <- NA 
+# If QA flag "mixed clouds" equals 1, set to NA
+```
+
+Be careful, some flags are very strict and remove almost all the data. You can check this by visualizing the data in the next chunk. The key is finding a balance between removing noise and retaining information. There are no clear-cut general rules on this.
+
+#### 2.3 Visualize
+
+Now that low quality data has been set as missing, plot the nine time series again and see what change
+
+```{r}
+# Create a list of titles for the plots
+unk_lct_names <- c("A", "B", "C", "D", "E", "F", "G", "H", "I")
+
+# Plot the time series in variable EVI_ts
+par(mfrow=c(3,3))
+for (i in 1:ncol(EVI_ts_sc_mk)) {
+  tm <- ts(EVI_ts_sc_mk[,i], start=c(2002,1,1), frequency=12)
+  ts.plot(tm, gpars=list(xlab="Time", ylab="EVI", main=unk_lct_names[i], 
+                         pch=c(5,2), lty=c(1,1), col=c("red"),ylim=c(0,0.9))
+          )
+}
+```
+
+```{r}
+# Save the processed time series
+if (saveFlag) {
+  save(unk_EVI_ts_sc_mk, file=paste0(dir_results, "/EVI_ts_sc_mk"))
+}
+```
+
+**Answer the following questions:**
+
+-   **Q2.2** What happens when more and more data is set as missing? How does that influence the quality of the time series data?
+
+### Step 3 Time series decomposition
+
+#### **3.1 Calculate seasonality, trend and remainder**
+
+In this step, we decompose the time series by extracting the seasonality, trend and remainder. Here, the decomposition is based on an additive model: **time series = seasonality + trend + remainder**.
+
+-   The **seasonality** is calculated by taking the mean of observations on the same day of all the years present in the time series; NA values are omitted from the calculation.
+
+-   The **trend** is based on linear regression
+
+-   The **remainder** is based on subtracting the seasonality and trend from the time series
+
+```{r}
+## Preparation
+
+# Save dimensions of EVI_ts
+nc <- dim(EVI_ts_sc_mk)[1] # = number of rows/time series/observations
+nr <- dim(EVI_ts_sc_mk)[2] # = number of columns/time steps
+
+# Create dataframe filled with NA values with the required dimensions
+seasonality <- matrix(NA, nrow=nc, ncol=nr)
+remainder <- matrix(NA, nrow=nc, ncol=nr) 
+trend <- matrix(NA, nrow=nr, ncol=3)
+
+# Seasonality
+for (i in 1:12) {
+  seasonality[seq(i,nc,12),] <- rowMeans(EVI_ts_sc_mk[seq(i,nc,12),], na.rm=T)
+}
+
+## Trend & Remainder
+EVI_ts_sc_mk_ds <- EVI_ts_sc_mk - seasonality # deseasonalized time series
+
+for (i in 1:dim(EVI_ts_sc_mk_ds)[2]) {
+  x <- seq_along(EVI_ts_sc_mk_ds[,i])
+  fit0 <- lm(EVI_ts_sc_mk_ds[,i] ~ x)
+  trend[i,1] <- fit0$coefficients[1] # intercept
+  trend[i,2] <- fit0$coefficients[2] # slope
+  trend[i,3] <- summary(fit0)$coefficients[2,4] # p value slope
+  if (trend[i,3] < 0.05) {
+    remainder[,i] <- EVI_ts_sc_mk_ds[,i]-
+      (trend[i,1]+trend[i,2]*x)+
+      mean(EVI_ts_sc_mk_ds[,i], na.rm=T)
+  }
+  else { 
+    remainder[,i] <- EVI_ts_sc_mk_ds[,i]
+    }
+}
+```
+
+#### **3.2 Visualize**
+
+```{r}
+# Plot EVI_ts_sc_mk and seasonality and tr
+par(mfrow=c(3,3)) # all plots on one page
+for (i in 1:dim(EVI_ts_sc_mk)[1]) {
+  tr <- trend[i,1]+trend[i,2]*(1:nc) + mean(EVI_ts_sc_mk[i,], na.rm=T)
+  tm <- ts(cbind(EVI_ts_sc_mk[i,], seasonality[i,], tr), 
+           start=c(2000,1,1), frequency=12)
+  ts.plot(tm, gpars=list(xlab="Time", ylab="EVI", main=unk_lct_names[i], ylim=c(-0.2,1), 
+                         pch=c(5,2),lty=c(1,1), col=c("black","red","green")))
+}
+```
+
+**Answer the following questions:**
+
+-   **Q3.1** What do the black, green, and red lines represent?
+
+-   **Q3.2** What is the biological meaning of the seasonality, the trend and the remainder? Which non-biological influences might also have an impact?
+
+### Step 4 Breakpoint detection
+
+In this step, we will use the `bfast01()` function of the `bfast` package to check whether one major break in the time series. `bfast01` is an implementation of the original `bfast` algorithm, but instead of detecting multiple breaks in a time series, it is designed to detect one major break in the seasonality or trend component of a time series. Here, we run the function with its default settings.
+
+#### 4.1 Apply bfast01
+
+First we will apply `bfast01()` for one of the time series so that we can explore the output a bit.
+
+```{r}
+# Get bfast output for time series A
+bfast_result <- bfast01(ts(EVI_ts_sc_mk[1,], start=c(2000,1,1), freq=12))
+
+# Explore the bfast01 output
+print(bfast_result$breaks)
+par(mfrow=c(1,1))
+plot(bfast_result)
+```
+
+#### 4.2 Apply bfast01 and visualize results
+
+```{r}
+# Apply bfast01 on time series A-I and plot output
+par(mfrow=c(3,3))
+for (i in 1:dim(unk_EVI_ts_sc_mk)[1]) {
+  bf <- bfast01(ts(unk_EVI_ts_sc_mk[i,], start=c(2000,1,1), freq=12))
+  plot(bf, main=unk_lct_names[i])
+}
+```
+
+-   **Q4.1** Which time series show a break? What could cause breaks and trend shifts?
+-   **Q4.2** Would it be useful to test the occurrence and timing of breaks in the SPEI dataset as well?
+
+### Step 5 Similarity measures
+
+#### 5.1 Calculate similarity measures
+
+In this step, we calculate three distance-based (dis)similarity measures -- based on Fourier distance, Miskowski distance and pairwise correlation -- between the time series with unknown land cover types and the reference time series. The measures are scaled between -1 and 1. Based on these plots, determine which land cover type is most likely associated with each time series. The 16 optional land cover types are given in the `ref_lct_names` variable.
+
+Find more information on these measures in *Lhermitte et al., 2011, Remote Sensing of Environment 115, 3129-3152.*
+
+```{r}
+# Create dataframe filled with NA values with the required dimensions
+dist_Four <- matrix(NA, nrow=9, ncol=16)
+dist_Corr <- matrix(NA, nrow=9, ncol=16)
+dist_Mink <- matrix(NA, nrow=9, ncol=16)
+
+for (i in 1:9) {
+  for (j in 1:16) {
+    # Fourier analysis requres time series without missing values
+    x <- x <- seq_along(unk_EVI_ts_sc_mk[i,])
+    ts_inp <- unk_EVI_ts_sc_mk[i,]
+    ts_inp[is.na(ts_inp)] <- approx(x, ts_inp, x[is.na(ts_inp)])$y
+    minx <- max(which(is.na(ts_inp[1:75])), 0)+1
+    maxx <- min(which(is.na(ts_inp[75:156])), 157)-1
+    ref_inp <- ref_EVI_seas[j,]
+    ref_inp[is.na(ref_inp)] <- approx(x, ref_inp, x[is.na(ref_inp)])$y
+    
+    # Computation of (dis)similarity measures
+    dist_Four[i,j] <- FourierDistance(ts_inp[minx:maxx], ref_inp[minx:maxx],3)
+    dist_Corr[i,j] <- cor(unk_EVI_ts_sc_mk[i,], ref_EVI_seas[j,], 
+                          use="pairwise.complete.obs")
+    dist_Mink[i,j] <- dist(unk_EVI_ts_sc_mk[i,], ref_EVI_seas[j,], p=2, 
+                           method="Minkowski", by_rows=F)
+  }
+}
+
+# Scale measures between -1 and 1
+dist_Mink <- dist_Mink/max(abs(dist_Mink))
+dist_Four <- dist_Four/max(abs(dist_Four), na.rm=T)
+```
+
+#### 5.2 Visualize
+
+```{r}
+# Plot (dis)similarity values
+par(mfrow=c(1,1))
+# Correlation
+corrplot(dist_Corr, method="color",  
+         addCoef.col="black",
+         tl.col="black", tl.srt=45,
+         title="Correlation plot", mar=c(0,0,1,0))
+# Mink distance
+corrplot(dist_Mink, method="color",  
+         addCoef.col="black",
+         tl.col="black", tl.srt=45,
+         title="Mink distance", mar=c(0,0,1,0))
+# Fourier distance
+corrplot(dist_Four, method="color",  
+         addCoef.col="black",
+         tl.col="black", tl.srt=45,
+         title="Fourier distance", mar=c(0,0,1,0))
+```
+
+-   **Q5.1** Could you also use the seasonality instead of the EVI time series to obtain the land cover types? What would be the (dis)advantages?
+
+-   **Q5.2** Do all similarity give the same results? Explain
+
+-   **Q5.3** Which land cover type is likely associated with each of the nine time series? Try to locate them on the map
+
+### Step 6 Phenology
+
+#### 6.1 Visualize seasonality measures
+
+In this step, we look at some seasonality measures of the time series. More specifically, the start, mid and end of the growing season for each time series as well as their mean and standard deviation. Due to missing values, there are no results for time series F.
+
+```{r}
+par(mfrow=c(3,3))
+for (i in 1:dim(unk_EVI_ts_sc_mk)[1]) {
+  # Convert DOY to
+  xs <- 2000 + (((unk_EVI_timesat_startSeas[i,]-1)/364*11) +
+                  ((seq_along(unk_EVI_timesat_startSeas[i,])-1)*12))/12
+  xm <- 2000 + (((unk_EVI_timesat_midSeas[i,]-1)/364*11) +
+                  ((seq_along(unk_EVI_timesat_midSeas[i,])-1)*12))/12
+  xe <- 2000 + (((unk_EVI_timesat_endSeas[i,]-1)/364*11) +
+                  ((seq_along(unk_EVI_timesat_endSeas[i,])-1)*12))/12
+  # Get corresponding EVI value
+  ys <- approx(2000 + (0:155)/12, unk_EVI_ts_sc_mk[i,], xs)$y
+  ym <- approx(2000 + (0:155)/12, unk_EVI_ts_sc_mk[i,], xm)$y
+  ye <- approx(2000 + (0:155)/12, unk_EVI_ts_sc_mk[i,], xe)$y
+
+  # Plot time series with seasonality measures
+  tm <- ts(unk_EVI_ts_sc_mk[i,],
+           start=c(2000,1,1), frequency=12)
+  ts.plot(tm, gpars=list(xlab="Time", ylab="EVI", main=unk_lct_names[i],
+                         pch=c(5,2), lty=c(1,1), col=c("black","red")))
+  points(xs, ys, pch=19, col=c("red")) # Add start of season as points
+  points(xm, ym, pch=19, col=c("green")) # Add mid of season as points
+  points(xe, ye, pch=19, col=c("blue")) # Add end of season as points
+}
+```
+
+#### 6.2 Visualize variability seasonality measures
+
+Here we will compare the variability of the seasonality measures for the time series with unknown land cover types across the years included in the time series. R will throw a warning because the data for time series F is missing. You can ignore that warning.
+
+```{r}
+## Start of season
+# Get rowMeans of unk_EVI_timesat_startSeas
+unk_EVI_timesat_startSeas_rowMeans <- rowMeans(unk_EVI_timesat_startSeas, na.rm=T)
+# Get rowSds (standard deviation) of unk_EVI_timesat_startSeas
+unk_EVI_timesat_startSeas_rowSds <- rowSds(unk_EVI_timesat_startSeas, na.rm=T)
+# Create dataframe with column names, mean start and mean start +/- standard deviation
+unk_EVI_timesat_startSeas_data <- as.data.frame(cbind(as.factor(unk_lct_names), 
+                                                      unk_EVI_timesat_startSeas_rowMeans, 
+                                                      unk_EVI_timesat_startSeas_rowMeans -
+                                                        unk_EVI_timesat_startSeas_rowSds, 
+                                                      unk_EVI_timesat_startSeas_rowMeans + 
+                                                        unk_EVI_timesat_startSeas_rowSds))
+# Change column names of dataframe
+colnames(unk_EVI_timesat_startSeas_data) <- c("names", "rowMeans", 
+                                              "rowMeansMinussd", "rowMeansPlussd")
+# Plot bar plots of the mean start of the growning period with error bars
+p <- ggplot(data=unk_EVI_timesat_startSeas_data, 
+            aes(x=unk_lct_names, y=rowMeans))
+p + geom_bar(stat="identity") + 
+  geom_errorbar(aes(ymin=rowMeansMinussd, ymax=rowMeansPlussd), width=0.25) + 
+  xlab("Time series") + 
+  ylab("Mean start of growing period") +
+  ylim(0,550)
+
+# You can copy and adapt the code for Middle of season and End of seasion
+```
+
+**Answer the following questions:**
+
+-   **Q6.1** Is the inter-annual variability of the phenology high for each of the land cover types? What could determine this variability?
+
+-   **Q6.2** Compare the phenology metrics of the land cover types. Explain.
+
+### Step 7 Remainder
+
+In this final step, we take a closer look at the remainder.
+
+#### 7.1 Calculate the standard deviation of the remainder
+
+Calculate the standard deviation fo the remainder.
+
+```{r}
+# Calculate the standard deviation of the remainder
+sd_rem <- rowSds(remainder, na.rm=T)
+print(sd_rem)
+```
+
+-   **Q7.1** Interpret the standard deviation of the remainder. What would influence this metric?
+
+### Step 8 SPEI
+
+#### 8.1 Visualize
+
+First, we visualize the Standardized Evapotranspiration Index (SPEI) time series. The SPEI is a widely used drought index based on climatic data. It is designed to take into account both precipitation and potential evapotranspiration. In this way, it captures the main impact of increased temperatures on water demand. Positive values indicate wet conditionals, while negative values indicate dry conditions.
+
+```{r}
+# Plot the time series in variable unk_EVI_ts
+par(mfrow=c(3,3))
+for (i in 1:nrow(unk_spei)) {
+  tm <- ts(unk_spei[i,], start=c(2000,1,1), frequency=12)
+  ts.plot(tm, gpars=list(xlab="Time", ylab="EVI", main=unk_lct_names[i], ylim=c(-2,2.5), 
+                         pch=c(5,2), lty=c(1,1), col=c("black"))
+          )
+  abline(h=0)
+}
+```
+
+#### **8.2** Correlate the remainder with the SPEI drought index
+
+Calculate the cross correlation of the remainder with the SPEI index.
+
+```{r}
+# Create 
+corr_rem <- matrix(NA, dim(remainder)[1], 1)
+
+for (i in 1:dim(remainder)[1]) {
+  corr_rem[i,] <- cor(remainder[i,1:144], unk_spei[i,], 
+                      use="pairwise.complete.obs")
+}
+print(corr_rem)
+```
+
+-   **Q8.1** Interpret the cross correlation with the drought index. Would you expect this result?
+
+-   **Q8.2** What is the advantage/disadvantage of using remote sensing time series compared to mono-temporal approaches? And compared to bi-temporal approaches?
+
+###### #EndOfFile
