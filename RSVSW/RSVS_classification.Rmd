@@ -493,7 +493,7 @@ Compare the predictor importance with your earlier plot of the spectral profiles
 
 ## Step 9: SVM
 
-OK, so we have trained one RF model, but of course we can also train some completely different models. On the [caret help page]() you can find a complete list of model types that can be used in caret and which relevant characteristics are set there.
+OK, so we have trained one RF model, but of course we can also train some completely different models. On the [caret help page](https://topepo.github.io/caret/available-models.html) you can find a complete list of model types that can be used in caret and which relevant characteristics are set there.
 
 For example, we can train a [support vector machine model](https://en.wikipedia.org/wiki/Support_vector_machine) (SVM). In this case we are going to fine tune two different SVM models with different values of the cost parameter and the Loss function to be used in the SVM model. The cost parameter in SVM determines the penalty for misclassification of training samples. It controls the balance between achieving a low training error and a low testing error. The loss function in SVM determines the type of error measure that the SVM model will optimize during training.
 
