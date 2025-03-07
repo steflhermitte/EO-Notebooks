@@ -627,7 +627,7 @@ Compare the different models and discuss their performance in terms of overall a
 
 Up to now we have been classifying our data based on per-pixel values only without taking the spatial context into account.
 
-In the next example we are going to calculate the Gray Level Co-Occurrence Matrix (Haralick et al. 1973) to calculate the texture of the image. GLCM is a powerful image feature for image analysis. The `glcm` package provides a easy-to-use function to calculate such textural features for RasterLayer objects in R.
+In the next example we are going to calculate the Gray Level Co-Occurrence Matrix (Haralick et al. 1973) to calculate the texture of the image. GLCM is a powerful image feature for image analysis. The `glcm` package provides a easy-to-use function to calculate such textural features for RasterLayer objects in R. More information on GCLM can be found [here](https://prism.ucalgary.ca/server/api/core/bitstreams/8f9de234-cc94-401d-b701-f08ceee6cfdf/content).
 
 We can calculate the GLCM textures in one direction:
 
