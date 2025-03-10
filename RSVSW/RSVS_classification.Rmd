@@ -238,7 +238,7 @@ dat_all <- data.table::as.data.table(rasterToPoints(s2_rl))
 # Add a column with the id
 dat_all = dat_all <- dat_all %>% mutate(id = row_number())
 
-# Select the id (column 1) and spectral data (columns 3 to 15) from dat_all
+# Select the id (column 15) and spectral data (columns 3 to 14) from dat_all
 dat_all = dat_all[,c(3:15)]
 
 # Create a vector of wavelengths that correspond to the columns of dat_all and include the id column
@@ -645,7 +645,7 @@ rglcm <- glcm(s2_rl[[4]],
 plot(rglcm)
 ```
 
-or we can calculate rotation-invariant texture features. This means that the e textural features are calculated in all 4 directions (0°, 45°, 90° and 135°) and then combined to one rotation-invariant texture. The key for this is the shift parameter.
+or we can calculate rotation-invariant texture features. This means that the textural features are calculated in all 4 directions (0°, 45°, 90° and 135°) and then combined to one rotation-invariant texture. The key for this is the shift parameter.
 
 ```{r}
 # Calculate gray level co-occurrence matrix (GLCM) for the fourth band of the image
