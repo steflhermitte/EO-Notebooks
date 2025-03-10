@@ -283,6 +283,8 @@ lc_r = raster::raster('lc_r.tif')
 So now, we have both our training data `X` (i.e., spectral values per pixel) and `Y` (i.e., class per pixel) downloaded to our computer and from that we need to create a training and testing set for our supervised classifier. To do so, we are first going to sample our `Y` into a random set of samples and subsequently get the corresponding `X` for each pixel.
 
 ```{r}
+set.seed(321) # set the seed for reproducibility
+
 # Convert the raster object 'lc_r' into a spatial points data frame using the 'rasterToPoints()' function,
 # and save the resulting data table to the variable 'poly_dt' as a data table using 'as.data.table()'.
 poly_dt <- data.table::as.data.table(rasterToPoints(lc_r))
@@ -369,7 +371,11 @@ dt_train <- dt[idx_train] # subset the training set
 dt_test <- dt[-idx_train] # subset the testing set
 
 # create a frequency table of the class variable in the training set
-table(dt_train$class)
+print(table(dt_train$class))
+print(table(dt_test$class))
+
+# remove classes with too little samples (only needed when the Random Forest model gives a lot of warnings, see below)
+# e.g. dt_train <- dt_train[!dt_train$class == 'X80', ]
 ```
 
 The training dataset is used for carrying cross-validation (CV) and grid search for model tuning. Once the optimal/best parameters were found a final model is fit to the entire training dataset using those findings. Further we can check how these final models behave on unseen data (the testing dataset). Therefore, the CV indices need to match when comparing multiple models, so to get a fair comparison. Therefore, folds will pass to trainControl argument for each type of model.
@@ -443,6 +449,10 @@ saveRDS(model_rf, file = "./cache/model_rf.rds")
 
 # Load the model again
 # model_rf = readRDS('./cache/model_rf.rds')
+
+# Getting a lot of warnings or NA values? remove classes with too little samples ()
+# dt_train <- dt_train[!dt_train$class == 'X80', ]
+# dt_test <- dt_test[!dt_test$class == 'X80', ]
 ```
 
 Tuning here was done via the `mtry` argument, which can vary from 2 up to total number of predictors (bands) used (here, 12). So, the optimization was done via cross validation and grid search (here by grid I refer to `tuneGrid = data.frame(mtry = c(2, 3, 4, 5, 8))`).
@@ -493,7 +503,7 @@ Compare the predictor importance with your earlier plot of the spectral profiles
 
 ## Step 9: SVM
 
-OK, so we have trained one RF model, but of course we can also train some completely different models. On the [caret help page]() you can find a complete list of model types that can be used in caret and which relevant characteristics are set there.
+OK, so we have trained one RF model, but of course we can also train some completely different models. On the [caret help page](https://topepo.github.io/caret/available-models.html) you can find a complete list of model types that can be used in caret and which relevant characteristics are set there.
 
 For example, we can train a [support vector machine model](https://en.wikipedia.org/wiki/Support_vector_machine) (SVM). In this case we are going to fine tune two different SVM models with different values of the cost parameter and the Loss function to be used in the SVM model. The cost parameter in SVM determines the penalty for misclassification of training samples. It controls the balance between achieving a low training error and a low testing error. The loss function in SVM determines the type of error measure that the SVM model will optimize during training.
 
@@ -617,7 +627,7 @@ Compare the different models and discuss their performance in terms of overall a
 
 Up to now we have been classifying our data based on per-pixel values only without taking the spatial context into account.
 
-In the next example we are going to calculate the Gray Level Co-Occurrence Matrix (Haralick et al. 1973) to calculate the texture of the image. GLCM is a powerful image feature for image analysis. The `glcm` package provides a easy-to-use function to calculate such textural features for RasterLayer objects in R.
+In the next example we are going to calculate the Gray Level Co-Occurrence Matrix (Haralick et al. 1973) to calculate the texture of the image. GLCM is a powerful image feature for image analysis. The `glcm` package provides a easy-to-use function to calculate such textural features for RasterLayer objects in R. More information on GCLM can be found [here](https://prism.ucalgary.ca/server/api/core/bitstreams/8f9de234-cc94-401d-b701-f08ceee6cfdf/content).
 
 We can calculate the GLCM textures in one direction:
 
