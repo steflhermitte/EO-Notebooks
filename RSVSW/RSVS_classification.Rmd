@@ -154,6 +154,7 @@ Once this is done you can visualize the image and use an interactive clicking fu
 
 ```{r}
 # Plot the data
+dev.new() # In RStudio, the raster::click()/terra::click() functions may result in an offset between the clicked point and the recorded one.
 raster::plotRGB(s2_rl, 2, 3, 4, stretch="lin", scale=5000)
 # Change plotting parameters to better see the points and numbers generated from clicking
 par(col="red", cex=3)
@@ -680,6 +681,7 @@ Therefore, we first have to first estimate the endmember spectra by selecting a 
 
 ```{r}
 # Plot the data
+dev.new() # To avoid offsets between clicked and recorded points
 plotRGB(s2_rl,2,3,4,stretch="lin",scale=5000)
 # change plotting parameters to better see the points and numbers generated from clicking
 par(col="red", cex=3)
